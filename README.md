@@ -35,7 +35,7 @@ The project includes a Flask backend, React frontend, trained deep learning mode
 
 ---
 
-## Features
+# Features
 
 ### Image Deepfake Detection
 
@@ -67,7 +67,8 @@ The project includes a Flask backend, React frontend, trained deep learning mode
 # Project Structure
 
 ```text
-Deepfake-detection-main/
+Multimodal-Deepfake-Detection-System-main/
+
 │
 ├── backend/
 │   ├── app.py
@@ -134,35 +135,28 @@ Deepfake-detection-main/
 
 # System Architecture
 
+```text
 Input Media
 (Image / Video / Audio)
-
-↓
-
+        ↓
 Preprocessing
-
-↓
-
+        ↓
 Individual Detection Models
-
-* EfficientNet-B4 (Image)
-* ResNeXt101 + MTCNN (Video)
-* CNN Log-Mel (Audio)
-
-↓
-
+        ↓
+┌─────────────────────────────┐
+│ EfficientNet-B4   (Image)   │
+│ ResNeXt101 + MTCNN (Video)  │
+│ CNN Log-Mel       (Audio)   │
+└─────────────────────────────┘
+        ↓
 Fusion Layer
-
-↓
-
+        ↓
 Deepfake Probability Score
-
-↓
-
+        ↓
 Final Prediction
-
-* Real
-* Fake
+   ├── Real
+   └── Fake
+```
 
 ---
 
@@ -176,7 +170,7 @@ datasets/DATASETS.md
 
 Datasets used:
 
-* FF++ (FaceForensics++)
+* FaceForensics++ (FF++)
 * 140K Real and Fake Faces
 * ASVspoof2019-LA
 * LAV-DF
@@ -194,7 +188,7 @@ Download instructions:
 weights/DOWNLOAD_MODELS.md
 ```
 
-Place all downloaded files inside:
+Place all downloaded model files inside:
 
 ```text
 backend/models/weights/
@@ -207,9 +201,9 @@ backend/models/weights/
 ## Clone Repository
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/Deepfake-detection-main.git
+git clone https://github.com/Cybertron2425/Multimodal-Deepfake-Detection-System-main.git
 
-cd Deepfake-detection-main
+cd Multimodal-Deepfake-Detection-System-main
 ```
 
 ---
@@ -218,8 +212,18 @@ cd Deepfake-detection-main
 
 ```bash
 python -m venv test_env
+```
 
+### Windows
+
+```bash
 test_env\Scripts\activate
+```
+
+### Linux / macOS
+
+```bash
+source test_env/bin/activate
 ```
 
 ---
@@ -246,15 +250,14 @@ to:
 backend/.env
 ```
 
-and update paths if necessary.
+Then update the required paths and configuration values if necessary.
 
 ---
 
-## Run Backend
+# Run Backend
 
 ```bash
 cd backend
-
 python app.py
 ```
 
@@ -266,13 +269,13 @@ http://localhost:8000
 
 ---
 
-## Run Frontend
+# Run Frontend
+
+Open a new terminal:
 
 ```bash
 cd Frontend
-
 npm install
-
 npm start
 ```
 
@@ -292,12 +295,12 @@ http://localhost:3000
 POST /predict/image
 ```
 
-Supported:
+Supported formats:
 
-* jpg
-* jpeg
-* png
-* webp
+* JPG
+* JPEG
+* PNG
+* WEBP
 
 ---
 
@@ -307,13 +310,13 @@ Supported:
 POST /predict/video
 ```
 
-Supported:
+Supported formats:
 
-* mp4
-* avi
-* mov
-* mkv
-* webm
+* MP4
+* AVI
+* MOV
+* MKV
+* WEBM
 
 ---
 
@@ -323,12 +326,12 @@ Supported:
 POST /predict/audio
 ```
 
-Supported:
+Supported formats:
 
-* wav
-* mp3
-* flac
-* m4a
+* WAV
+* MP3
+* FLAC
+* M4A
 
 ---
 
@@ -370,7 +373,7 @@ Supported:
 
 # Documentation
 
-Project report and presentation:
+Project report and presentation are available in:
 
 ```text
 docs/
@@ -380,7 +383,7 @@ docs/
 
 # Demo
 
-Demo videos and walkthrough links:
+Demo videos and walkthrough links are available in:
 
 ```text
 demo/DEMO_LINKS.md
@@ -390,21 +393,18 @@ demo/DEMO_LINKS.md
 
 # Author
 
-Shubham Raj
+**Abhay Gupta**
 
-B.Tech in Computer Science and Engineering (Data Science)
+B.Tech in Computer Science and Engineering
 
 Final Year Project
 
 ---
 
-
-## Contributors
-
-- Shubham Raj (CSEDS/2022/054)
-- Divyanshu Ranjan (CSEDS/2022/026)
-- Sakshi Priya (CSEDS/2022/051)
 # License
 
 This project is intended for academic and research purposes only.
+
+---
+
 # Multimodal-Deepfake-Detection-System-main
