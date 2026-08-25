@@ -1,0 +1,67 @@
+# =========================
+# Virtual Environments
+# =========================
+backend/venv/
+backend/test_env/
+venv/
+test_env/
+
+# =========================
+# Python Cache
+# =========================
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+
+# =========================
+# Environment Variables
+# =========================
+.env
+backend/.env
+
+# =========================
+# Logs
+# =========================
+logs/
+backend/logs/
+*.log
+
+# =========================
+# Uploads
+# =========================
+backend/uploads/
+
+# Ignore large files inside these folders if needed
+# but keep documentation files
+
+# weights folder
+weights/*
+!weights/DOWNLOAD_MODELS.md
+
+# datasets folder
+datasets/*
+!datasets/DATASETS.md
+
+# demo folder
+demo/*
+!demo/DEMO_LINKS.md
+
+# =========================
+# Frontend
+# =========================
+Frontend/node_modules/
+Frontend/build/
+
+# =========================
+# IDE
+# =========================
+.vscode/
+.idea/
+
+# =========================
+# OS Files
+# =========================
+.DS_Store
+Thumbs.db
+Desktop.ini

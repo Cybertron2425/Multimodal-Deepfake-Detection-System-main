@@ -1,0 +1,40 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@300;400;500;600;700&family=Syne:wght@600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  * { box-sizing: border-box; }
+  
+  html {
+    scroll-behavior: smooth;
+  }
+
+  body {
+    @apply bg-void-950 text-white antialiased;
+    font-family: 'DM Sans', sans-serif;
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { @apply bg-void-950; }
+  ::-webkit-scrollbar-thumb { @apply bg-void-700 rounded-full; }
+  ::-webkit-scrollbar-thumb:hover { @apply bg-cyber-600; }
+}
+
+@layer utilities {
+  .bg-grid-pattern {
+    background-image: 
+      linear-gradient(rgba(20,184,166,0.04) 1px, transparent 1px),
+      linear-gradient(90deg, rgba(20,184,166,0.04) 1px, transparent 1px);
+    background-size: 40px 40px;
+  }
+
+  .text-glow {
+    text-shadow: 0 0 20px currentColor;
+  }
+}
+
+/* Audio element custom styling */
+audio::-webkit-media-controls-panel {
+  background: rgba(15, 23, 42, 0.8);
+}
