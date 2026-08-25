@@ -180,10 +180,13 @@ class ModelRegistry:
 
         # Build ResNeXt-101 architecture matching training notebook
         net = models.resnext101_32x8d(weights=None)
-        net.fc = nn.Linear(
-            net.fc.in_features,
-            2
-        )
+        net.fc = nn.Sequential(
+    nn.Linear(net.fc.in_features, 512),
+    nn.BatchNorm1d(512),
+    nn.ReLU(),
+    nn.Dropout(0.5),
+    nn.Linear(512, 2)
+)
         if Path(model_path).exists():
             try:
                 state = torch.load(model_path, map_location=device)

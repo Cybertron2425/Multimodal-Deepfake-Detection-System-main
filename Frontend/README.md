@@ -1,129 +1,424 @@
-# DeepScan — AI Deepfake Detection Platform
+# DeepScan: Multimodal Deepfake Detection Using Audio-Visual Fusion Networks
 
-A professional, futuristic deepfake detection web application with support for images, videos, and audio.
+## Overview
 
-## 🚀 Quick Start
+DeepScan is a multimodal deepfake detection system designed to identify manipulated content across images, videos, and audio recordings.
 
-### Prerequisites
-- Node.js 16+
-- npm or yarn
-- Backend API running (see Backend Setup)
+The system combines:
 
-### Frontend Setup
+* Image Deepfake Detection using EfficientNet-B4
+* Video Deepfake Detection using ResNeXt101 + MTCNN Face Extraction
+* Audio Deepfake Detection using CNN-based Log-Mel Spectrogram Analysis
+* Multimodal Fusion Framework for robust deepfake analysis
+
+The project includes a Flask backend, React frontend, trained deep learning models, and research documentation.
+
+---
+
+## User Interface Preview
+
+### Home Page
+
+![Home Page](screenshots/Home_Page.png)
+
+### Image Deepfake Detection
+
+![Image Detection](screenshots/Image_Detection.png)
+
+### Audio Deepfake Detection
+
+![Audio Detection](screenshots/Audio_detection.png)
+
+### Video Deepfake Detection
+
+![Video Detection](screenshots/Video_Detection.png)
+
+---
+
+# Features
+
+### Image Deepfake Detection
+
+* EfficientNet-B4 based classifier
+* Face-aware deepfake analysis
+* Real/Fake prediction with confidence score
+
+### Video Deepfake Detection
+
+* ResNeXt101 based frame-level detection
+* MTCNN face extraction
+* Suspicious frame selection
+* Temporal deepfake analysis
+
+### Audio Deepfake Detection
+
+* CNN-based Log-Mel Spectrogram classifier
+* Trained on ASVspoof2019-LA
+* Synthetic speech and voice cloning detection
+
+### Multimodal Fusion
+
+* Audio-Visual fusion framework
+* Reliability-aware decision making
+* Improved robustness against modality-specific failures
+
+---
+
+# Project Structure
+
+```text
+Multimodal-Deepfake-Detection-System-main/
+
+│
+├── backend/
+│   ├── app.py
+│   ├── config.py
+│   │
+│   ├── models/
+│   │   ├── audio_model.py
+│   │   ├── image_model.py
+│   │   ├── video_model.py
+│   │   └── weights/
+│   │       └── .gitkeep
+│   │
+│   ├── routes/
+│   │   ├── predict.py
+│   │   └── health.py
+│   │
+│   ├── services/
+│   │   ├── model_registry.py
+│   │   ├── predict_service.py
+│   │   ├── fusion_runner.py
+│   │   │
+│   │   ├── runners/
+│   │   │   ├── image_runner.py
+│   │   │   ├── video_runner.py
+│   │   │   ├── audio_runner.py
+│   │   │   └── image_fusion_runner.py
+│   │   │
+│   │   └── fusion/
+│   │       ├── adaptive_visual_fusion.py
+│   │       ├── suspicious_frame_selector.py
+│   │       └── final_multimodal_fusion.py
+│   │
+│   ├── utils/
+│   └── tests/
+│
+├── Frontend/
+│   ├── src/
+│   ├── public/
+│   └── package.json
+│
+├── notebooks/
+│   └── Training and experimentation notebooks
+│
+├── docs/
+│   ├── Project_Report.pdf
+│   └── Project_Presentation.pptx
+│
+├── datasets/
+│   └── DATASETS.md
+│
+├── demo/
+│   └── DEMO_LINKS.md
+│
+├── weights/
+│   └── DOWNLOAD_MODELS.md
+│
+├── requirements.txt
+├── frontend_api.js
+├── README.md
+└── .gitignore
+```
+
+---
+
+# System Architecture
+
+```text
+Input Media
+
+(Image / Video / Audio)
+
+        ↓
+
+Preprocessing
+
+        ↓
+
+Individual Detection Models
+
+        ↓
+
+┌─────────────────────────────┐
+│ EfficientNet-B4   (Image)   │
+│ ResNeXt101 + MTCNN (Video)  │
+│ CNN Log-Mel       (Audio)   │
+└─────────────────────────────┘
+
+        ↓
+
+Fusion Layer
+
+        ↓
+
+Deepfake Probability Score
+
+        ↓
+
+Final Prediction
+
+   ├── Real
+   └── Fake
+```
+
+---
+
+# Datasets
+
+Dataset details are provided in:
+
+```text
+datasets/DATASETS.md
+```
+
+Datasets used:
+
+* FaceForensics++ (FF++)
+* 140K Real and Fake Faces
+* ASVspoof2019-LA
+* LAV-DF
+* Real-world YouTube videos
+
+---
+
+# Model Weights
+
+Model files are not included in this repository due to GitHub size limitations.
+
+Download instructions:
+
+```text
+weights/DOWNLOAD_MODELS.md
+```
+
+Place all downloaded model files inside:
+
+```text
+backend/models/weights/
+```
+
+---
+
+# Installation
+
+## Clone Repository
 
 ```bash
-cd deepfake-detector
+git clone https://github.com/Cybertron2425/Multimodal-Deepfake-Detection-System-main.git
+
+cd Multimodal-Deepfake-Detection-System-main
+```
+
+---
+
+## Create Python Environment
+
+```bash
+python -m venv test_env
+```
+
+### Windows
+
+```bash
+test_env\Scripts\activate
+```
+
+### Linux / macOS
+
+```bash
+source test_env/bin/activate
+```
+
+---
+
+## Install Dependencies
+
+```bash
+pip install -r requirements.txt
+```
+
+---
+
+## Configure Environment
+
+Copy:
+
+```text
+backend/.env.example
+```
+
+to:
+
+```text
+backend/.env
+```
+
+Then update the required paths and configuration values if necessary.
+
+---
+
+# Run Backend
+
+```bash
+cd backend
+python app.py
+```
+
+Backend runs at:
+
+```text
+http://localhost:8000
+```
+
+---
+
+# Run Frontend
+
+Open a new terminal:
+
+```bash
+cd Frontend
 npm install
-cp .env.example .env   # Edit API URL
 npm start
 ```
 
-Opens at http://localhost:3000
+Frontend runs at:
 
-### Environment Variables
-
-```env
-REACT_APP_API_BASE_URL=http://localhost:8000
+```text
+http://localhost:3000
 ```
 
-## 📁 Project Structure
+---
 
-```
-deepfake-detector/
-├── public/
-│   └── index.html
-├── src/
-│   ├── components/
-│   │   ├── Navbar.jsx          # Fixed navbar with live status
-│   │   ├── Hero.jsx            # Hero section with stats
-│   │   ├── DropZone.jsx        # Drag & drop file upload
-│   │   ├── AnalyzeButton.jsx   # Upload progress + analyze
-│   │   ├── ResultCard.jsx      # Detection result with charts
-│   │   ├── ResultSkeleton.jsx  # Loading skeleton
-│   │   └── HistoryPanel.jsx    # Recent analyses history
-│   ├── context/
-│   │   └── ThemeContext.jsx    # Dark/light mode
-│   ├── hooks/
-│   │   └── useHistory.js       # LocalStorage history
-│   ├── services/
-│   │   └── api.js              # Axios API integration
-│   ├── App.jsx
-│   ├── index.js
-│   └── index.css
-├── .env
-├── package.json
-└── tailwind.config.js
+# API Endpoints
+
+## Image Prediction
+
+```http
+POST /predict/image
 ```
 
-## 🔌 Backend API Contract
+Supported formats:
 
-### POST /predict/image
-### POST /predict/video  
-### POST /predict/audio
+* JPG
+* JPEG
+* PNG
+* WEBP
 
-**Request:** `multipart/form-data` with `file` field
+---
 
-**Response:**
-```json
-{
-  "prediction": "Fake",
-  "confidence": 97.3,
-  "processing_time": "1.2s",
-  "model": "EfficientNet-B4"
-}
+## Video Prediction
+
+```http
+POST /predict/video
 ```
 
-## 🧠 AI Models
+Supported formats:
 
-| Media | Endpoint | Architecture |
-|-------|----------|-------------|
-| Image | `/predict/image` | EfficientNet-B4 |
-| Video | `/predict/video` | SlowFast Network |
-| Audio | `/predict/audio` | CNN + Log-Mel (ASVspoof) |
+* MP4
+* AVI
+* MOV
+* MKV
+* WEBM
 
-## ✨ Features
+---
 
-- Drag & drop upload with file preview
-- Automatic file type detection (image/video/audio)
-- Upload progress animation
-- AI confidence visualization (radial chart)
-- Real vs Fake verdict banner
-- Processing time & model display
-- Analysis history (persisted in localStorage)
-- Dark/light mode toggle
-- Toast notifications
-- Loading skeletons
-- Responsive design
-- File validation (type + size)
+## Audio Prediction
 
-## 🏗️ Building for Production
-
-```bash
-npm run build
-# Serve the /build directory
+```http
+POST /predict/audio
 ```
 
-## 🔧 Backend Quick Start (Python/FastAPI)
+Supported formats:
 
-```python
-from fastapi import FastAPI, File, UploadFile
-from fastapi.middleware.cors import CORSMiddleware
+* WAV
+* MP3
+* FLAC
+* M4A
 
-app = FastAPI()
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+---
 
-@app.post("/predict/image")
-async def predict_image(file: UploadFile = File(...)):
-    # Load your EfficientNet-B4 model and run inference
-    return {"prediction": "Fake", "confidence": 97.3, "processing_time": "1.2s", "model": "EfficientNet-B4"}
+# Technologies Used
 
-@app.post("/predict/video")
-async def predict_video(file: UploadFile = File(...)):
-    return {"prediction": "Real", "confidence": 88.5, "processing_time": "3.4s", "model": "SlowFast"}
+### Backend
 
-@app.post("/predict/audio")
-async def predict_audio(file: UploadFile = File(...)):
-    return {"prediction": "Fake", "confidence": 94.1, "processing_time": "0.8s", "model": "CNN-LogMel"}
+* Flask
+* TensorFlow
+* PyTorch
+* OpenCV
+* Librosa
+* Scikit-Learn
 
-# Run: uvicorn main:app --reload --port 8000
+### Frontend
+
+* React.js
+* Axios
+* Tailwind CSS
+
+### Deep Learning
+
+* EfficientNet-B4
+* ResNeXt101
+* CNN
+* MTCNN
+
+---
+
+# Research Contributions
+
+* Multimodal Deepfake Detection Framework
+* Audio-Visual Fusion Strategy
+* Suspicious Frame Selection Mechanism
+* Reliability-Aware Decision Pipeline
+* Real-world Deepfake Evaluation
+
+---
+
+# Documentation
+
+Project report and presentation are available in:
+
+```text
+docs/
 ```
+
+---
+
+# Demo
+
+Demo videos and walkthrough links are available in:
+
+```text
+demo/DEMO_LINKS.md
+```
+
+---
+
+# Author
+
+**Abhay Gupta**
+
+B.Tech in Computer Science and Engineering
+
+Final Year Project
+
+---
+
+# License
+
+This project is intended for academic and research purposes only.
+
+---
+
+# Multimodal-Deepfake-Detection-System-main
