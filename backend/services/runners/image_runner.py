@@ -20,6 +20,9 @@ from sklearn import pipeline
 
 logger = logging.getLogger(__name__)
 
+class NoFaceDetectedError(Exception):
+    pass
+
 # ImageNet normalization constants
 _MEAN = np.array([0.485, 0.456, 0.406], dtype=np.float32)
 _STD  = np.array([0.229, 0.224, 0.225], dtype=np.float32)
@@ -49,6 +52,16 @@ class ImageRunner:
         if pipeline is not None:
             try:
                 return self._run_fusion(file_path, pipeline)
+            except NoFaceDetectedError:
+                return {
+                    "prediction": "Unknown",
+                    "confidence": 0.0,
+                    "model": FUSION_MODEL_NAME,
+                    "raw_score": 0.0,
+                    "image_score": 0.0,
+                    "image_confidence": 0.0,
+                    "note": "No face detected in the image. This tool needs a clear, visible face to analyze.",
+                }
             except Exception as exc:
                 logger.warning(f"[IMAGE-FUSION] Fusion inference failed: {exc}. Falling back to standard model.")
 
@@ -167,13 +180,7 @@ class ImageRunner:
 
         if len(faces) == 0:
             logger.warning("[IMAGE-FUSION] No faces detected for landmark extraction.")
-            return None
-
-        faces = detector(gray, 1)
-        
-        if len(faces) == 0:
-            logger.warning("[IMAGE-FUSION] No face detected.")
-            return np.zeros(136, dtype=np.float32)
+            raise NoFaceDetectedError("No face detected in the uploaded image.")
         
         face = max(faces, key=lambda r: r.width() * r.height())
         

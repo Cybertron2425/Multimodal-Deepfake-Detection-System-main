@@ -9,12 +9,12 @@ Frontend (api.js) calls:
 Expected response shape (api.js reads these exact keys):
     {
         "prediction":      "Fake" | "Real",
-        "confidence":      97.3,           # float 0-100
-        "processing_time": "1.2s",         # string with 's' suffix
+        "confidence":      97.3,
+        "processing_time": "1.2s",
         "model":           "EfficientNet-B4"
     }
 
-Error shape (api.js reads error.response.data.detail):
+Error shape:
     { "detail": "Human-readable error message" }
 """
 
@@ -38,105 +38,208 @@ predict_bp = Blueprint("predict", __name__, url_prefix="/predict")
 
 def _run_prediction(media_type: str):
     """
-    Shared pipeline for all three endpoints:
-    1. Validate the incoming file
+    Shared pipeline for image/video/audio endpoints:
+    1. Validate incoming file
     2. Save to temp
     3. Run model inference
-    4. Clean up temp
-    5. Return JSON matching the frontend contract
+    4. Remove internal non-JSON objects
+    5. Clean up temp file
+    6. Return JSON matching frontend contract
     """
-    logger.info(f"[{media_type.upper()}] Prediction request received")
+
+    logger.info(
+        f"[{media_type.upper()}] Prediction request received"
+    )
 
     # 1. File presence check
     if "file" not in request.files:
-        logger.warning(f"[{media_type.upper()}] No 'file' field in request")
-        return jsonify({"detail": "No file provided. Send a multipart/form-data request with a 'file' field."}), 400
+        logger.warning(
+            f"[{media_type.upper()}] No 'file' field in request"
+        )
+
+        return jsonify({
+            "detail": (
+                "No file provided. Send a multipart/form-data "
+                "request with a 'file' field."
+            )
+        }), 400
 
     file = request.files["file"]
 
     if file.filename == "":
-        return jsonify({"detail": "No file selected."}), 400
+        return jsonify({
+            "detail": "No file selected."
+        }), 400
 
-    # 2. Validate MIME type and size against allowed lists from config
-    validator = FileValidator(current_app.config)
-    validation_error = validator.validate(file, media_type)
+    # 2. Validate MIME type and size
+    validator = FileValidator(
+        current_app.config
+    )
+
+    validation_error = validator.validate(
+        file,
+        media_type
+    )
+
     if validation_error:
-        logger.warning(f"[{media_type.upper()}] Validation failed: {validation_error}")
-        return jsonify({"detail": validation_error}), 422
 
-    # 3. Save to a unique temp path so the model can open it from disk
+        logger.warning(
+            f"[{media_type.upper()}] "
+            f"Validation failed: {validation_error}"
+        )
+
+        return jsonify({
+            "detail": validation_error
+        }), 422
+
+    # 3. Save temporary file
     tmp_path = None
+
     try:
+
         tmp_path = save_temp_file(
             file_storage=file,
-            upload_dir=current_app.config["UPLOAD_FOLDER"],
+            upload_dir=current_app.config[
+                "UPLOAD_FOLDER"
+            ],
             original_filename=file.filename,
         )
 
-        # 4. Run inference via the service layer
-        service  = PredictService(current_app.config)
-        result   = service.predict(media_type, tmp_path, file.filename)
-
-        logger.info(
-            f"[{media_type.upper()}] Done | file={file.filename} | "
-            f"prediction={result['prediction']} | confidence={result['confidence']}"
+        # 4. Run inference
+        service = PredictService(
+            current_app.config
         )
 
-        # 5. Return — keys match exactly what api.js destructures
+        result = service.predict(
+            media_type,
+            tmp_path,
+            file.filename
+        )
+
+        logger.info(
+            f"[{media_type.upper()}] Done | "
+            f"file={file.filename} | "
+            f"prediction={result['prediction']} | "
+            f"confidence={result['confidence']}"
+        )
+
+        # IMPORTANT:
+        # VideoRunner keeps PIL.Image frames internally for
+        # multimodal/fusion processing. PIL.Image cannot be
+        # serialized by Flask's jsonify().
+        #
+        # Remove them only from the HTTP response.
+        result.pop("frames", None)
+
+        # Also remove any accidental internal image objects
+        # if a future runner adds them under these keys.
+        result.pop("frame_images", None)
+        result.pop("images", None)
+
+        # 5. Return JSON
         return jsonify(result), 200
 
     except RuntimeError as exc:
-        # Model inference failure
-        logger.error(f"[{media_type.upper()}] Inference error: {exc}", exc_info=True)
-        return jsonify({"detail": str(exc)}), 500
+
+        logger.error(
+            f"[{media_type.upper()}] "
+            f"Inference error: {exc}",
+            exc_info=True
+        )
+
+        return jsonify({
+            "detail": str(exc)
+        }), 500
 
     except Exception as exc:
-        logger.error(f"[{media_type.upper()}] Unexpected error: {exc}", exc_info=True)
-        return jsonify({"detail": "An unexpected error occurred during analysis."}), 500
+
+        logger.error(
+            f"[{media_type.upper()}] "
+            f"Unexpected error: {exc}",
+            exc_info=True
+        )
+
+        return jsonify({
+            "detail": (
+                "An unexpected error occurred "
+                "during analysis."
+            )
+        }), 500
 
     finally:
-        if tmp_path and os.path.exists(tmp_path):
+
+        if (
+            tmp_path
+            and os.path.exists(tmp_path)
+        ):
             delete_file(tmp_path)
 
 
-# ── Endpoints ─────────────────────────────────────────────────────────────────
+# ── Image endpoint ────────────────────────────────────────────────────────────
 
 @predict_bp.post("/image")
 def predict_image():
+
     """
     POST /predict/image
-    Accepts: JPG, PNG, WEBP, GIF, BMP (max 500 MB)
-    Model: EfficientNet-B4 fine-tuned on CIFAKE
+
+    Accepts:
+        JPG, PNG, WEBP, GIF, BMP
+
+    Model:
+        EfficientNet-B4
     """
+
     return _run_prediction("image")
 
 
+# ── Video endpoint ────────────────────────────────────────────────────────────
+
 @predict_bp.post("/video")
 def predict_video():
+
     """
     POST /predict/video
-    Accepts: MP4, AVI, MOV, MKV, WEBM (max 500 MB)
-    Model: ResNeXt101-32x8d + MTCNN face extraction on FF++ C23
+
+    Accepts:
+        MP4, AVI, MOV, MKV, WEBM
+
+    Model:
+        Fine-tuned SigLIP V2 deepfake detector.
     """
+
     return _run_prediction("video")
 
 
+# ── Audio endpoint ────────────────────────────────────────────────────────────
+
 @predict_bp.post("/audio")
 def predict_audio():
+
     """
     POST /predict/audio
-    Accepts: MP3, WAV, FLAC, OGG, M4A (max 500 MB)
-    Model: CNN on Log-Mel spectrograms trained on ASVspoof2019-LA
+
+    Accepts:
+        MP3, WAV, FLAC, OGG, M4A
+
+    Model:
+        CNN on Log-Mel spectrograms.
     """
+
     return _run_prediction("audio")
 
+
+# ── Multimodal endpoint ───────────────────────────────────────────────────────
 
 @predict_bp.post("/multimodal")
 def predict_multimodal():
 
-    logger.info("[MULTIMODAL] Prediction request received")
+    logger.info(
+        "[MULTIMODAL] Prediction request received"
+    )
 
     if "file" not in request.files:
+
         return jsonify({
             "detail": "No file provided."
         }), 400
@@ -144,6 +247,7 @@ def predict_multimodal():
     file = request.files["file"]
 
     if file.filename == "":
+
         return jsonify({
             "detail": "No file selected."
         }), 400
@@ -154,7 +258,9 @@ def predict_multimodal():
 
         tmp_path = save_temp_file(
             file_storage=file,
-            upload_dir=current_app.config["UPLOAD_FOLDER"],
+            upload_dir=current_app.config[
+                "UPLOAD_FOLDER"
+            ],
             original_filename=file.filename,
         )
 
@@ -167,8 +273,15 @@ def predict_multimodal():
 
         result = fusion_runner.run(
             tmp_path,
-            file.filename       
+            file.filename
         )
+
+        # Remove PIL.Image objects or other internal data
+        # before returning JSON.
+        if isinstance(result, dict):
+            result.pop("frames", None)
+            result.pop("frame_images", None)
+            result.pop("images", None)
 
         return jsonify(result), 200
 
@@ -185,5 +298,8 @@ def predict_multimodal():
 
     finally:
 
-        if tmp_path and os.path.exists(tmp_path):
+        if (
+            tmp_path
+            and os.path.exists(tmp_path)
+        ):
             delete_file(tmp_path)

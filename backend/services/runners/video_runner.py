@@ -1,216 +1,445 @@
 """
 services/runners/video_runner.py
 
-ResNeXt101-32x8d video deepfake detection.
-Pipeline mirrors video_model_.py (notebook) exactly:
-  1. Sample FRAME_COUNT frames uniformly across the video
-  2. MTCNN face detection + alignment (224×224, margin=20)
-  3. Per-frame softmax → fake probability
-  4. Vote: if fake_frame_ratio >= FAKE_THRESHOLD → FAKE
+Fine-tuned SigLIP V2 video deepfake detector.
+
+Pipeline:
+    Video
+      ↓
+    16 uniformly sampled frames
+      ↓
+    Fine-tuned SigLIP V2
+      ↓
+    Frame-level Fake / Real probabilities
+      ↓
+    Average Fake probability
+      ↓
+    Final REAL / FAKE prediction
 """
 
 import logging
-from tkinter import Image
-import cv2
+
 import cv2
 import numpy as np
-import cv2
 from PIL import Image
-
-from services.fusion.suspicious_frame_selector import (
-    select_suspicious_frames
-)
-
 
 
 logger = logging.getLogger(__name__)
 
-MODEL_NAME  = "ResNeXt101-32x8d"
-INPUT_SIZE  = (224, 224)
-
-# ImageNet normalization
-_MEAN = [0.485, 0.456, 0.406]
-_STD  = [0.229, 0.224, 0.225]
+MODEL_NAME = "Fine-tuned SigLIP V2 Deepfake Detector"
 
 
 class VideoRunner:
-    def __init__(self, registry, config: dict):
-        self.registry     = registry
-        self.config       = config
-        self.frame_count  = int(config.get("VIDEO_FRAME_COUNT", 16))
-        self.fake_thresh  = float(config.get("VIDEO_FAKE_THRESHOLD", 0.60))
 
-    def run(self, file_path: str, filename: str) -> dict:
+    def __init__(self, registry, config):
+
+        self.registry = registry
+        self.config = config
+
+        self.frame_count = int(
+            config.get(
+                "VIDEO_FRAME_COUNT",
+                16
+            )
+        )
+
+        self.fake_thresh = float(
+            config.get(
+                "VIDEO_FAKE_THRESHOLD",
+                0.50
+            )
+        )
+
+    # =========================================================
+    # MAIN VIDEO PREDICTION
+    # =========================================================
+
+    def run(
+        self,
+        file_path: str,
+        filename: str
+    ) -> dict:
+
         import torch
-        import torch.nn.functional as F
-        from torchvision import transforms
 
-        model  = self.registry.get_video_model(self.config)
-        device = next(model.parameters()).device
+        # -----------------------------------------------------
+        # Load fine-tuned V2 model
+        # -----------------------------------------------------
 
-        transform = transforms.Compose([
-            transforms.Resize(INPUT_SIZE),
-            transforms.ToTensor(),
-            transforms.Normalize(_MEAN, _STD),
-        ])
-        
-        frames = self._extract_frames(file_path)
+        model, processor, device = (
+            self.registry.get_video_model_v2(
+                self.config
+            )
+        )
 
-        faces = self._extract_faces(file_path)
+        logger.info(
+            f"[VIDEO-V2] Processing: {filename}"
+        )
 
-        if not faces:
-            logger.warning(f"[VIDEO] No faces detected in {filename}. Returning Real/50%.")
+        logger.info(
+            f"[VIDEO-V2] Device: {device}"
+        )
+
+        # -----------------------------------------------------
+        # Extract frames
+        # -----------------------------------------------------
+
+        frames = self._extract_frames(
+            file_path
+        )
+
+        if not frames:
+
+            logger.warning(
+                "[VIDEO-V2] No frames extracted."
+            )
+
             return {
                 "prediction": "Real",
                 "confidence": 50.0,
                 "model": MODEL_NAME,
                 "raw_score": 0.0,
                 "video_score": 0.0,
-                "video_confidence": 0.0,
+                "video_confidence": 0.50,
                 "fake_ratio": 0.0,
                 "frame_probs": [],
                 "frames_analyzed": 0,
-                "note": "No faces detected in video",
+                "frames": [],
             }
 
         fake_probs = []
-        model.eval()
-        with torch.no_grad():
-            for face_pil in faces:
-                tensor = transform(face_pil).unsqueeze(0).to(device)
-                logits = model(tensor)
-                probs  = F.softmax(logits, dim=1).cpu().numpy()[0]
-                fake_probs.append(float(probs[1]))
-                logger.info(f"REAL={probs[0]:.4f} FAKE={probs[1]:.4f}")
+        real_probs = []
 
-        fake_ratio = sum(1 for p in fake_probs if p > 0.5) / len(fake_probs)
-        logger.info(f"FAKE FRAME RATIO = {fake_ratio}")
-        logger.info(f"FRAME PROBS = {fake_probs}")
-        is_fake    = fake_ratio >= self.fake_thresh
-        confidence = fake_ratio * 100 if is_fake else (1 - fake_ratio) * 100
-        
-        logger.info(f"TOTAL FRAMES = {len(frames)}")
-        logger.info(f"TOTAL PROBS = {len(fake_probs)}")
+        # -----------------------------------------------------
+        # Predict each frame
+        # -----------------------------------------------------
+
+        with torch.no_grad():
+
+            for frame_no, frame in enumerate(
+                frames,
+                start=1
+            ):
+
+                try:
+
+                    inputs = processor(
+                        images=frame,
+                        return_tensors="pt"
+                    )
+
+                    inputs = {
+                        key: value.to(device)
+                        for key, value in inputs.items()
+                    }
+
+                    outputs = model(
+                        **inputs
+                    )
+
+                    probabilities = torch.softmax(
+                        outputs.logits,
+                        dim=1
+                    )[0]
+
+                    # Model mapping:
+                    # 0 = Fake
+                    # 1 = Real
+
+                    fake_probability = float(
+                        probabilities[0].item()
+                    )
+
+                    real_probability = float(
+                        probabilities[1].item()
+                    )
+
+                    fake_probs.append(
+                        fake_probability
+                    )
+
+                    real_probs.append(
+                        real_probability
+                    )
+
+                    frame_prediction = (
+                        "FAKE"
+                        if fake_probability > real_probability
+                        else "REAL"
+                    )
+
+                    logger.info(
+                        "[VIDEO-V2] Frame %02d | "
+                        "%s | Fake: %.2f%% | Real: %.2f%%",
+                        frame_no,
+                        frame_prediction,
+                        fake_probability * 100,
+                        real_probability * 100,
+                    )
+
+                except Exception as exc:
+
+                    logger.warning(
+                        "[VIDEO-V2] Frame %02d failed: %s",
+                        frame_no,
+                        exc,
+                    )
+
+        # -----------------------------------------------------
+        # No successful frames
+        # -----------------------------------------------------
+
+        if not fake_probs:
+
+            return {
+                "prediction": "Real",
+                "confidence": 50.0,
+                "model": MODEL_NAME,
+                "raw_score": 0.0,
+                "video_score": 0.0,
+                "video_confidence": 0.50,
+                "fake_ratio": 0.0,
+                "frame_probs": [],
+                "frames_analyzed": 0,
+                "frames": [],
+            }
+
+        # -----------------------------------------------------
+        # Aggregate probabilities
+        # -----------------------------------------------------
+
+        fake_probs_array = np.asarray(
+            fake_probs,
+            dtype=np.float32
+        )
+
+        real_probs_array = np.asarray(
+            real_probs,
+            dtype=np.float32
+        )
+
+        average_fake = float(
+            np.mean(fake_probs_array)
+        )
+
+        average_real = float(
+            np.mean(real_probs_array)
+        )
+
+        # Percentage of frames where
+        # Fake probability is > 50%
+
+        fake_frame_ratio = float(
+            np.mean(
+                fake_probs_array > 0.50
+            )
+        )
+
+        # -----------------------------------------------------
+        # Final decision
+        # -----------------------------------------------------
+
+        if average_fake >= self.fake_thresh:
+
+            prediction = "Fake"
+
+            confidence = (
+                average_fake * 100.0
+            )
+
+        else:
+
+            prediction = "Real"
+
+            confidence = (
+                average_real * 100.0
+            )
+
+        # -----------------------------------------------------
+        # Final logs
+        # -----------------------------------------------------
+
+        logger.info(
+            "[VIDEO-V2] Total successful frames: %d",
+            len(fake_probs)
+        )
+
+        logger.info(
+            "[VIDEO-V2] Average Fake Probability: %.4f",
+            average_fake
+        )
+
+        logger.info(
+            "[VIDEO-V2] Average Real Probability: %.4f",
+            average_real
+        )
+
+        logger.info(
+            "[VIDEO-V2] Fake Frame Ratio: %.4f",
+            fake_frame_ratio
+        )
+
+        logger.info(
+            "[VIDEO-V2] FINAL PREDICTION: %s",
+            prediction
+        )
+
+        logger.info(
+            "[VIDEO-V2] FINAL CONFIDENCE: %.2f%%",
+            confidence
+        )
+
+        # -----------------------------------------------------
+        # Return result
+        # -----------------------------------------------------
 
         return {
-            "prediction": "Fake" if is_fake else "Real",
-            "confidence": round(confidence, 2),
+            "prediction": prediction,
+
+            "confidence": round(
+                confidence,
+                2
+            ),
+
             "model": MODEL_NAME,
-            "raw_score": round(fake_ratio, 4),
-            
-            "video_score": float(np.mean(fake_probs)),
-            "video_confidence": float(confidence / 100),
-            
-            "fake_ratio": float(fake_ratio),
-            
-            "frame_probs": fake_probs,
+
+            "raw_score": round(
+                average_fake,
+                6
+            ),
+
+            "video_score": round(
+                average_fake,
+                6
+            ),
+
+            "video_confidence": round(
+                confidence / 100.0,
+                6
+            ),
+
+            "fake_ratio": round(
+                fake_frame_ratio,
+                6
+            ),
+
+            "frame_probs": [
+                round(
+                    float(probability),
+                    6
+                )
+                for probability in fake_probs
+            ],
+
+            "frames_analyzed": len(
+                fake_probs
+            ),
+
+            # Required internally by multimodal fusion.
             "frames": frames,
-            
-            "frames_analyzed": len(fake_probs),
         }
 
-    def _extract_faces(self, video_path: str):
-        """
-        Sample frames uniformly → MTCNN face extraction.
-        Matches the extract_faces_from_video() function in the notebook.
-        Returns list of PIL Images (face crops at 224×224).
-        """
-        import cv2
-        from PIL import Image
-        try:
-            from facenet_pytorch import MTCNN
-            import torch
-            device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-            mtcnn  = MTCNN(
-                image_size=224, margin=20, min_face_size=40,
-                keep_all=False, device=device, post_process=False,
+    # =========================================================
+    # FRAME EXTRACTION
+    # =========================================================
+
+    def _extract_frames(
+        self,
+        video_path: str
+    ):
+
+        cap = cv2.VideoCapture(
+            video_path
+        )
+
+        if not cap.isOpened():
+
+            logger.error(
+                "[VIDEO-V2] Could not open video: %s",
+                video_path
             )
-            has_mtcnn = True
-        except ImportError:
-            logger.warning("[VIDEO] facenet-pytorch not installed. Using centre-crop fallback.")
-            has_mtcnn = False
 
-        cap   = cv2.VideoCapture(video_path)
-        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        if total == 0:
+            return []
+
+        total_frames = int(
+            cap.get(
+                cv2.CAP_PROP_FRAME_COUNT
+            )
+        )
+
+        if total_frames <= 0:
+
             cap.release()
+
+            logger.error(
+                "[VIDEO-V2] Video contains no frames."
+            )
+
             return []
 
-        indices = np.linspace(0, total - 1, self.frame_count, dtype=int)
-        frames  = []
-        for idx in indices:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, int(idx))
-            ret, frame = cap.read()
-            if not ret:
-                continue
-            frames.append(Image.fromarray(cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)))
-        cap.release()
+        sample_count = min(
+            self.frame_count,
+            total_frames
+        )
 
-        if not frames:
-            return []
-
-        if not has_mtcnn:
-            # Fallback: just centre-crop each frame
-            return [f.resize(INPUT_SIZE) for f in frames]
-
-        # Batch MTCNN — matches notebook batch_size=16 on CPU
-        faces = []
-        batch_size = 16
-        for i in range(0, len(frames), batch_size):
-            batch = frames[i: i + batch_size]
-            try:
-                ft = mtcnn(batch)
-                if ft is None:
-                    continue
-                if not isinstance(ft, list):
-                    ft = [ft]
-                for f in ft:
-                    if f is None:
-                        continue
-                    face_np = f.permute(1, 2, 0).byte().cpu().numpy()
-                    faces.append(Image.fromarray(face_np))
-            except Exception as exc:
-                logger.debug(f"[VIDEO] MTCNN batch error: {exc}")
-                continue
-
-        return faces if faces else [f.resize(INPUT_SIZE) for f in frames]
-    
-    
-    
-    def _extract_frames(self, video_path: str):
-        import cv2
-        from PIL import Image
-        cap = cv2.VideoCapture(video_path)
-        total = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-        if total == 0:
-            cap.release()
-            return []
-        
         indices = np.linspace(
             0,
-            total - 1,
-            self.frame_count,
+            total_frames - 1,
+            sample_count,
             dtype=int
         )
-        
+
+        logger.info(
+            "[VIDEO-V2] Total frames: %d",
+            total_frames
+        )
+
+        logger.info(
+            "[VIDEO-V2] Selected frame indices: %s",
+            indices.tolist()
+        )
+
         frames = []
-        
-        for idx in indices:
-            cap.set(cv2.CAP_PROP_POS_FRAMES, int(idx))
-            ret, frame = cap.read()
-            
-            if not ret:
-                continue
-            
-            frames.append(
-                Image.fromarray(
-                    cv2.cvtColor(frame, cv2.COLOR_BGR2RGB)
+
+        for index in indices:
+
+            cap.set(
+                cv2.CAP_PROP_POS_FRAMES,
+                int(index)
+            )
+
+            success, frame = cap.read()
+
+            if not success:
+
+                logger.warning(
+                    "[VIDEO-V2] Failed to read frame index %d",
+                    index
                 )
-           )
+
+                continue
+
+            # OpenCV BGR → RGB
+
+            frame_rgb = cv2.cvtColor(
+                frame,
+                cv2.COLOR_BGR2RGB
+            )
+
+            image = Image.fromarray(
+                frame_rgb
+            )
+
+            frames.append(
+                image
+            )
+
         cap.release()
+
+        logger.info(
+            "[VIDEO-V2] Successfully extracted %d/%d frames",
+            len(frames),
+            sample_count
+        )
+
         return frames
-    
-    
-    
-
-

@@ -24,7 +24,7 @@ MediaType = Literal["image", "video", "audio"]
 
 _RUNNER_MAP = {
     "image": ImageRunner,
-    "video": FusionRunner,
+    "video": VideoRunner,
     "audio": AudioRunner,
 }
 
