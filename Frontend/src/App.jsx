@@ -2,11 +2,10 @@ import React, { useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster, toast } from 'react-hot-toast';
 import Navbar from './components/Navbar';
-import Hero from './components/Hero';
 import DropZone from './components/DropZone';
 import AnalyzeButton from './components/AnalyzeButton';
 import ResultCard from './components/ResultCard';
-import ResultSkeleton from './components/ResultSkeleton';
+import AnalysisExperience from './components/AnalysisExperience';
 import HistoryPanel from './components/HistoryPanel';
 import { ThemeProvider } from './context/ThemeContext';
 import { useHistory } from './hooks/useHistory';
@@ -99,27 +98,37 @@ function DeepfakeApp() {
   }, [file, addEntry]);
 
   return (
-    <div className="min-h-screen bg-void-950 dark:bg-void-950 relative">
+    <div className="min-h-screen bg-void-950 dark:bg-void-950 relative overflow-hidden">
       {/* Global background effects */}
       <div className="fixed inset-0 pointer-events-none">
-        <div className="absolute inset-0 bg-grid-pattern bg-grid opacity-30" />
-        <div className="absolute top-0 left-1/4 w-96 h-96 rounded-full bg-cyber-500/5 blur-3xl" />
-        <div className="absolute bottom-1/4 right-1/4 w-80 h-80 rounded-full bg-neon-purple/5 blur-3xl" />
+        <div className="background-grid absolute inset-0 bg-grid-pattern bg-grid opacity-30" />
+        <div className="ambient-glow ambient-glow-one" />
+        <div className="ambient-glow ambient-glow-two" />
+        <div className="background-aurora" />
+        <div className="background-particles" />
       </div>
 
       <Toaster position="top-right" />
       <Navbar />
-      <Hero />
-
       {/* Main detector panel */}
-      <main className="relative max-w-2xl mx-auto px-4 pb-16">
+      <main className="relative max-w-2xl mx-auto px-3 sm:px-4 pt-24 sm:pt-28 md:pt-32 pb-10 sm:pb-16">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3, ease: [0.16, 1, 0.3, 1] }}
-          className="rounded-3xl border border-void-800 bg-void-900/40 backdrop-blur-xl
-            p-6 md:p-8 space-y-6"
+          className="detector-panel rounded-3xl border border-void-800 bg-void-900/40 backdrop-blur-xl
+            p-4 sm:p-5 md:p-8 space-y-5 sm:space-y-6"
         >
+          <div className="flex items-center justify-between pb-1">
+            <div>
+              <p className="font-mono text-[10px] uppercase tracking-[0.2em] text-cyber-400">Secure analysis</p>
+              <h2 className="mt-1 font-display text-lg sm:text-xl font-bold text-white">Upload a file to begin</h2>
+            </div>
+            <div className="hidden sm:flex items-center gap-2 rounded-full border border-void-700/70 bg-void-950/50 px-3 py-1.5 text-xs text-void-400">
+              <span className="h-1.5 w-1.5 rounded-full bg-neon-green shadow-[0_0_8px_#00ff9d]" />
+              Private scan
+            </div>
+          </div>
           {/* Drop zone */}
           <DropZone
             onFileSelect={handleFileSelect}
@@ -138,9 +147,9 @@ function DeepfakeApp() {
 
           {/* Results */}
           <AnimatePresence mode="wait">
-            {isProcessing && uploadProgress >= 100 && !result && (
-              <motion.div key="skeleton" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
-                <ResultSkeleton />
+            {isProcessing && !result && (
+              <motion.div key="analysis" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}>
+                <AnalysisExperience progress={uploadProgress} />
               </motion.div>
             )}
             {result && !isProcessing && (

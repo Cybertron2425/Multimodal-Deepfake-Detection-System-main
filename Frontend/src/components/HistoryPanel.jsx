@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { History, Trash2, ShieldX, ShieldCheck, Image, Video, Music, ChevronRight } from 'lucide-react';
 
@@ -15,7 +15,9 @@ function timeAgo(iso) {
 }
 
 export default function HistoryPanel({ history, onClear, onSelect }) {
+  const [showAll, setShowAll] = useState(false);
   if (history.length === 0) return null;
+  const visibleHistory = showAll ? history : history.slice(0, 3);
 
   return (
     <motion.section
@@ -26,17 +28,17 @@ export default function HistoryPanel({ history, onClear, onSelect }) {
     >
       <div className="rounded-2xl border border-void-700/50 bg-void-900/40 backdrop-blur-sm overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-void-700/50">
-          <div className="flex items-center gap-2.5">
-            <History className="w-4 h-4 text-cyber-400" />
-            <h2 className="font-display font-semibold text-white">Recent Analyses</h2>
-            <span className="px-2 py-0.5 rounded-md bg-cyber-500/20 text-cyber-300 text-xs font-mono">
+        <div className="flex items-center justify-between gap-2 px-4 sm:px-5 py-3.5 sm:py-4 border-b border-void-700/50">
+          <div className="flex min-w-0 items-center gap-1.5 sm:gap-2.5">
+            <History className="w-4 h-4 shrink-0 text-cyber-400" />
+            <h2 className="font-display text-sm sm:text-base font-semibold text-white whitespace-nowrap">Recent Analyses</h2>
+            <span className="shrink-0 px-2 py-0.5 rounded-md bg-cyber-500/20 text-cyber-300 text-xs font-mono">
               {history.length}
             </span>
           </div>
           <button onClick={onClear}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs
-              text-void-400 hover:text-neon-red hover:bg-neon-red/10 transition-all border
+              shrink-0 text-void-400 hover:text-neon-red hover:bg-neon-red/10 transition-all border
               border-transparent hover:border-neon-red/20">
             <Trash2 className="w-3.5 h-3.5" />
             Clear
@@ -46,7 +48,7 @@ export default function HistoryPanel({ history, onClear, onSelect }) {
         {/* List */}
         <div className="divide-y divide-void-800/50">
           <AnimatePresence>
-            {history.map((item, i) => {
+            {visibleHistory.map((item, i) => {
               const isFake = item.prediction?.toLowerCase() === 'fake';
               const FileIcon = FILE_ICONS[item.file_type] || Image;
               return (
@@ -92,6 +94,17 @@ export default function HistoryPanel({ history, onClear, onSelect }) {
             })}
           </AnimatePresence>
         </div>
+
+        {history.length > 3 && (
+          <div className="border-t border-void-700/50 p-3 text-center">
+            <button
+              onClick={() => setShowAll((current) => !current)}
+              className="rounded-lg px-4 py-2 text-xs font-medium text-cyber-300 transition-colors hover:bg-cyber-500/10 hover:text-cyber-200"
+            >
+              {showAll ? 'Show less' : `Show more (${history.length - 3})`}
+            </button>
+          </div>
+        )}
       </div>
     </motion.section>
   );

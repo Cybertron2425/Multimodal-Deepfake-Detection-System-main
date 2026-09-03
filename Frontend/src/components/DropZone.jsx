@@ -1,7 +1,7 @@
 import React, { useCallback, useState } from 'react';
 import { useDropzone } from 'react-dropzone';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Upload, Image, Video, Music, X, FileCheck, AlertCircle } from 'lucide-react';
+import { Upload, Image, Video, Music, X, FileCheck, AlertCircle, ScanLine } from 'lucide-react';
 import { ACCEPTED_FILES, MAX_FILE_SIZE, getFileType } from '../services/api';
 
 const FILE_ICONS = { image: Image, video: Video, audio: Music };
@@ -65,23 +65,33 @@ export default function DropZone({ onFileSelect, file, onClear, isProcessing }) 
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
             className="relative rounded-2xl border border-cyber-500/40 bg-void-900/60
-              backdrop-blur-sm p-6 overflow-hidden"
+              backdrop-blur-sm p-4 sm:p-6 overflow-hidden"
           >
             {/* Shimmer top border */}
             <div className="absolute top-0 left-0 right-0 h-px
               bg-gradient-to-r from-transparent via-cyber-400 to-transparent" />
 
-            <div className="flex items-center gap-4">
-              <div className={`w-14 h-14 rounded-xl flex items-center justify-center
+            <AnimatePresence>
+              {isProcessing && (
+                <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 z-10 overflow-hidden bg-void-950/60 backdrop-blur-[2px] flex flex-col items-center justify-center">
+                  <motion.div className="absolute left-0 right-0 h-16 bg-gradient-to-b from-transparent via-cyber-300/25 to-transparent" animate={{ top: ['-20%', '110%'] }} transition={{ duration: 1.7, repeat: Infinity, ease: 'linear' }} />
+                  <motion.div animate={{ scale: [1, 1.08, 1], rotate: [0, 4, -4, 0] }} transition={{ duration: 1.8, repeat: Infinity }} className="relative grid h-14 w-14 place-items-center rounded-2xl border border-cyber-300/50 bg-cyber-500/15 shadow-[0_0_28px_rgba(45,212,191,.28)]"><ScanLine className="h-7 w-7 text-cyber-200" /></motion.div>
+                  <p className="relative mt-3 font-mono text-xs tracking-[0.16em] text-cyber-200">SCANNING FILE</p>
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div className="grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-3 sm:gap-4">
+              <div className={`w-11 h-11 sm:w-14 sm:h-14 rounded-xl flex items-center justify-center
                 bg-void-800 border border-void-700/50 flex-shrink-0`}>
-                <FileIcon className={`w-7 h-7 ${FILE_COLORS[fileType]}`} />
+                <FileIcon className={`w-5 h-5 sm:w-7 sm:h-7 ${FILE_COLORS[fileType]}`} />
               </div>
 
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
+                <div className="flex items-center gap-1.5 mb-1 whitespace-nowrap">
                   <FileCheck className="w-3.5 h-3.5 text-cyber-400 flex-shrink-0" />
                   <span className="text-xs text-cyber-400 font-mono uppercase tracking-wider">
-                    {fileType} file ready
+                    {fileType} ready
                   </span>
                 </div>
                 <p className="text-white font-medium truncate">{file.name}</p>
@@ -103,7 +113,7 @@ export default function DropZone({ onFileSelect, file, onClear, isProcessing }) 
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
-                className="mt-4 rounded-xl overflow-hidden border border-void-700/50"
+                className="mt-4 max-w-sm mx-auto rounded-xl overflow-hidden border border-void-700/50"
               >
                 <img
                   src={URL.createObjectURL(file)}
@@ -114,7 +124,7 @@ export default function DropZone({ onFileSelect, file, onClear, isProcessing }) 
             )}
 
             {fileType === 'audio' && (
-              <div className="mt-4">
+              <div className="mt-4 max-w-sm mx-auto">
                 <audio controls className="w-full" style={{ filter: 'invert(0.9) hue-rotate(180deg)' }}>
                   <source src={URL.createObjectURL(file)} type={file.type} />
                 </audio>
@@ -125,7 +135,7 @@ export default function DropZone({ onFileSelect, file, onClear, isProcessing }) 
               <motion.div
                 initial={{ height: 0, opacity: 0 }}
                 animate={{ height: 'auto', opacity: 1 }}
-                className="mt-4 rounded-xl overflow-hidden border border-void-700/50"
+                className="mt-4 max-w-sm mx-auto rounded-xl overflow-hidden border border-void-700/50"
               >
                 <video controls className="w-full max-h-64 bg-void-950">
                   <source src={URL.createObjectURL(file)} type={file.type} />
@@ -141,7 +151,7 @@ export default function DropZone({ onFileSelect, file, onClear, isProcessing }) 
             exit={{ opacity: 0, scale: 0.95 }}
             {...getRootProps()}
             className={`relative rounded-2xl border-2 border-dashed cursor-pointer
-              transition-all duration-300 p-12 text-center group overflow-hidden
+              transition-all duration-300 p-6 sm:p-10 md:p-12 text-center group overflow-hidden
               ${isDragActive || dragActive
                 ? 'border-cyber-400 bg-cyber-500/5'
                 : 'border-void-700/50 bg-void-900/40 hover:border-cyber-500/50 hover:bg-cyber-500/5'
@@ -160,23 +170,23 @@ export default function DropZone({ onFileSelect, file, onClear, isProcessing }) 
             )}
 
             {/* Icon cluster */}
-            <div className="flex items-center justify-center gap-3 mb-6">
+            <div className="flex items-center justify-center gap-2 sm:gap-3 mb-5 sm:mb-6">
               {[Image, Video, Music].map((Icon, i) => (
                 <motion.div
                   key={i}
                   whileHover={{ scale: 1.1 }}
-                  className="w-12 h-12 rounded-xl bg-void-800 border border-void-700/50
+                  className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-void-800 border border-void-700/50
                     flex items-center justify-center group-hover:border-cyber-500/30
                     transition-all duration-300"
                 >
-                  <Icon className="w-6 h-6 text-void-400 group-hover:text-cyber-400 transition-colors" />
+                  <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-void-400 group-hover:text-cyber-400 transition-colors" />
                 </motion.div>
               ))}
             </div>
 
-            <div className="flex items-center justify-center gap-2 mb-3">
+            <div className="flex items-start justify-center gap-2 mb-3">
               <Upload className="w-4 h-4 text-cyber-400" />
-              <p className="text-white font-semibold">
+              <p className="text-sm sm:text-base text-white font-semibold">
                 Drop your file here, or{' '}
                 <span className="text-cyber-400 underline underline-offset-2">browse</span>
               </p>

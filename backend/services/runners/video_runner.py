@@ -49,6 +49,7 @@ class VideoRunner:
                 0.50
             )
         )
+        self._last_frame_metadata = []
 
     # =========================================================
     # MAIN VIDEO PREDICTION
@@ -103,12 +104,14 @@ class VideoRunner:
                 "video_confidence": 0.50,
                 "fake_ratio": 0.0,
                 "frame_probs": [],
+                "frame_evidence": [],
                 "frames_analyzed": 0,
                 "frames": [],
             }
 
         fake_probs = []
         real_probs = []
+        frame_evidence = []
 
         # -----------------------------------------------------
         # Predict each frame
@@ -168,6 +171,15 @@ class VideoRunner:
                         else "REAL"
                     )
 
+                    metadata = self._last_frame_metadata[frame_no - 1]
+                    frame_evidence.append({
+                        "frame_number": frame_no,
+                        "frame_index": metadata["frame_index"],
+                        "timestamp_seconds": metadata["timestamp_seconds"],
+                        "fake_probability": round(fake_probability * 100.0, 2),
+                        "prediction": frame_prediction,
+                    })
+
                     logger.info(
                         "[VIDEO-V2] Frame %02d | "
                         "%s | Fake: %.2f%% | Real: %.2f%%",
@@ -200,6 +212,7 @@ class VideoRunner:
                 "video_confidence": 0.50,
                 "fake_ratio": 0.0,
                 "frame_probs": [],
+                "frame_evidence": [],
                 "frames_analyzed": 0,
                 "frames": [],
             }
@@ -331,6 +344,9 @@ class VideoRunner:
                 for probability in fake_probs
             ],
 
+            # JSON-safe per-frame evidence for the frontend report.
+            "frame_evidence": frame_evidence,
+
             "frames_analyzed": len(
                 fake_probs
             ),
@@ -400,6 +416,8 @@ class VideoRunner:
         )
 
         frames = []
+        self._last_frame_metadata = []
+        fps = float(cap.get(cv2.CAP_PROP_FPS) or 0.0)
 
         for index in indices:
 
@@ -433,6 +451,10 @@ class VideoRunner:
             frames.append(
                 image
             )
+            self._last_frame_metadata.append({
+                "frame_index": int(index),
+                "timestamp_seconds": round(float(index) / fps, 3) if fps > 0 else None,
+            })
 
         cap.release()
 
